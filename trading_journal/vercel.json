@@ -1,0 +1,8 @@
+{
+  "buildCommand": "pip install flask requests",
+  "outputDirectory": ".",
+  "framework": "flask",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index.py" }
+  ]
+}
