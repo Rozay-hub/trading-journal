@@ -6,6 +6,10 @@ import os
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
 
+@app.errorhandler(500)
+def internal_error(e):
+    return f"Internal Server Error: {str(e)}", 500
+
 # Serve static files
 @app.route('/static/<path:filename>')
 def serve_static(filename):
@@ -86,6 +90,15 @@ def api_stats():
     end_date = request.args.get('end_date', '')
     stats = get_stats(start_date=start_date, end_date=end_date)
     return jsonify(stats)
+
+@app.route('/debug')
+def debug():
+    import os
+    return jsonify({
+        'supabase_url_set': bool(os.environ.get('SUPABASE_URL')),
+        'supabase_key_set': bool(os.environ.get('SUPABASE_KEY')),
+        'supabase_url': os.environ.get('SUPABASE_URL', '')[:20] + '...',
+    })
 
 if __name__ == '__main__':
     app.run()
