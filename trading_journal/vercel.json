@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pip install flask requests",
+  "buildCommand": "pip install flask requests --break-system-packages",
   "outputDirectory": ".",
   "framework": "flask",
   "rewrites": [
