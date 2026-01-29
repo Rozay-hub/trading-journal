@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Journal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">📈 Trading Journal</div>
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}" class="active">Dashboard</a>
+            <a href="{{ url_for('log_trade') }}">Log Trade</a>
+            <a href="{{ url_for('history') }}">History</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total P&L</div>
+                <div class="stat-value {{ 'positive' if stats.total_pnl >= 0 else 'negative' }}">
+                    {{ '+$' if stats.total_pnl >= 0 else '-$' }}{{ "%.2f"|format(stats.total_pnl|abs) }}
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value">{{ stats.win_rate }}%</div>
+                <div class="stat-sub">{{ stats.wins }}W / {{ stats.losses }}L</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Profit Factor</div>
+                <div class="stat-value">{{ stats.profit_factor }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Current Streak</div>
+                <div class="stat-value {{ 'positive' if stats.current_streak > 0 else 'negative' }}">
+                    {{ stats.current_streak }}{{ 'W' if stats.current_streak > 0 else 'L' }}
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Trades</div>
+                <div class="stat-value">{{ stats.total_trades }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Win</div>
+                <div class="stat-value positive">+${{ "%.2f"|format(stats.avg_win) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Loss</div>
+                <div class="stat-value negative">-${{ "%.2f"|format(stats.avg_loss|abs) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Longest Streak</div>
+                <div class="stat-value">{{ stats.longest_win_streak }}W / {{ stats.longest_loss_streak }}L</div>
+            </div>
+        </div>
+
+        <!-- Today's Stats -->
+        <div class="section">
+            <h2>Today's Performance</h2>
+            <div class="mini-stats">
+                <span class="{{ 'positive' if today_stats.total_pnl >= 0 else 'negative' }}">
+                    P&L: {{ '+$' if today_stats.total_pnl >= 0 else '-$' }}{{ "%.2f"|format(today_stats.total_pnl|abs) }}
+                </span>
+                <span>Trades: {{ today_stats.total_trades }}</span>
+                <span>Win Rate: {{ today_stats.win_rate }}%</span>
+            </div>
+        </div>
+
+        <!-- Recent Trades -->
+        <div class="section">
+            <h2>Recent Trades</h2>
+            <table class="trades-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Symbol</th>
+                        <th>Dir</th>
+                        <th>Entry</th>
+                        <th>Exit</th>
+                        <th>Size</th>
+                        <th>P&L</th>
+                        <th>Notes</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trade in recent_trades %}
+                    <tr class="{{ 'win' if trade.pnl > 0 else 'loss' }}">
+                        <td>{{ trade.created_at | format_date }}</td>
+                        <td class="symbol">{{ trade.symbol }}</td>
+                        <td class="{{ trade.direction }}">{{ trade.direction[:1].upper() }}</td>
+                        <td>{{ trade.entry_price }}</td>
+                        <td>{{ trade.exit_price }}</td>
+                        <td>{{ trade.size }}</td>
+                        <td class="pnl {{ 'positive' if trade.pnl > 0 else 'negative' }}">
+                            {{ '+$' if trade.pnl >= 0 else '-$' }}{{ "%.2f"|format(trade.pnl|abs) }}
+                            <span class="pnl-pct">{{ "%.1f"|format(trade.pnl_pct) }}%</span>
+                        </td>
+                        <td class="notes">{{ trade.session_notes or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('delete', trade_id=trade.id) }}" class="delete-btn" onclick="return confirm('Delete this trade?')">×</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <a href="{{ url_for('log_trade') }}" class="btn btn-primary">+ Log Trade</a>
+            <a href="{{ url_for('history') }}" class="btn btn-secondary">View All History</a>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh stats every 30 seconds
+        setInterval(() => {
+            fetch('/api/stats')
+                .then(r => r.json())
+                .then(data => {
+                    console.log('Stats updated:', data);
+                });
+        }, 30000);
+    </script>
+</body>
+</html>

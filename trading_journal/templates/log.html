@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Trade - Trading Journal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">📈 Trading Journal</div>
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}">Dashboard</a>
+            <a href="{{ url_for('log_trade') }}" class="active">Log Trade</a>
+            <a href="{{ url_for('history') }}">History</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="form-container">
+            <h1>Log New Trade</h1>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Manual Entry Form -->
+            <form method="POST" class="trade-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="symbol">Symbol</label>
+                        <input type="text" id="symbol" name="symbol" placeholder="EURUSD" required list="symbols">
+                        <datalist id="symbols">
+                            <option value="EURUSD">
+                            <option value="GBPUSD">
+                            <option value="USDJPY">
+                            <option value="AUDUSD">
+                            <option value="USDCAD">
+                            <option value="NZDUSD">
+                            <option value="EURGBP">
+                            <option value="XAUUSD">
+                            <option value="BTCUSD">
+                        </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label for="direction">Direction</label>
+                        <select id="direction" name="direction" required>
+                            <option value="long">Long</option>
+                            <option value="short">Short</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="entry_price">Entry Price</label>
+                        <input type="number" id="entry_price" name="entry_price" step="0.00001" placeholder="1.05000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="exit_price">Exit Price</label>
+                        <input type="number" id="exit_price" name="exit_price" step="0.00001" placeholder="1.05500" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="size">Position Size (lots)</label>
+                        <input type="number" id="size" name="size" step="0.01" placeholder="1.0" value="1.0" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="session_notes">Session Notes</label>
+                    <textarea id="session_notes" name="session_notes" rows="3" placeholder="Trade setup, market conditions, emotions..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">Log Trade</button>
+            </form>
+
+            <div class="divider">OR</div>
+
+            <!-- Voice Recording -->
+            <div class="voice-section">
+                <h2>🎙️ Voice Log</h2>
+                <p>Say: "EURUSD long 1.0500 1.0550 1.0" or describe your trade</p>
+                <button id="recordBtn" class="btn btn-voice">
+                    <span class="mic-icon">🎤</span> Hold to Record
+                </button>
+                <div id="recordingStatus" class="recording-status"></div>
+                <div id="voiceResult" class="voice-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const recordBtn = document.getElementById('recordBtn');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const voiceResult = document.getElementById('voiceResult');
+        let mediaRecorder = null;
+        let audioChunks = [];
+
+        recordBtn.addEventListener('mousedown', startRecording);
+        recordBtn.addEventListener('mouseup', stopRecording);
+        recordBtn.addEventListener('mouseleave', stopRecording);
+        
+        // Touch support for mobile
+        recordBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); });
+        recordBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopRecording(); });
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.start();
+                recordingStatus.textContent = '🔴 Recording... Release to stop';
+                recordingStatus.classList.add('recording');
+            } catch (err) {
+                recordingStatus.textContent = '❌ Microphone access denied';
+                console.error('Recording error:', err);
+            }
+        }
+
+        async function stopRecording() {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+
+                recordingStatus.textContent = '⏳ Transcribing...';
+
+                // Send to server for transcription
+                const response = await fetch('/voice-log', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                recordingStatus.classList.remove('recording');
+
+                if (result.success) {
+                    recordingStatus.textContent = '✅ ' + result.message;
+                    voiceResult.innerHTML = `<div class="alert success">${result.message}</div>`;
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    recordingStatus.textContent = '❌ ' + (result.error || 'Transcription failed');
+                    voiceResult.innerHTML = `<div class="alert error">${result.error}</div>`;
+                }
+            };
+
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+    </script>
+</body>
+</html>
