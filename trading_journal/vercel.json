@@ -2,6 +2,7 @@
   "buildCommand": "pip install flask requests --break-system-packages",
   "outputDirectory": ".",
   "framework": "flask",
+  "rootDirectory": "trading_journal",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index.py" }
   ]
